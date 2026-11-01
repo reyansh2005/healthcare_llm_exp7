@@ -58,7 +58,12 @@ def _get_embedding_model() -> Any:
                     model_name = os.getenv(
                         "EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"
                     )
-                    cache_dir = os.getenv("FASTEMBED_CACHE_DIR", "./.fastembed")
+                    cache_dir = os.getenv("FASTEMBED_CACHE_DIR", "/tmp/.fastembed")
+                    cache_path = Path(cache_dir)
+                    if not cache_path.parent.exists() or not os.access(
+                        cache_path.parent, os.W_OK
+                    ):
+                        cache_dir = "/tmp/.fastembed"
                     encoder = TextEmbedding(
                         model_name=model_name,
                         cache_dir=cache_dir,
