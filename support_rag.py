@@ -186,12 +186,20 @@ def _get_llm_client() -> OpenAI:
 def _call_llm(prompt: str, max_new_tokens: int) -> str:
     """Call the configured cloud LLM without exposing request data in logs."""
     try:
-        response = _get_llm_client().chat.completions.create(
-            model=_LLM_MODEL_ID,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_new_tokens,
-            temperature=float(_LLM_TEMPERATURE),
-        )
+        request: dict[str, Any] = {
+            "model": _LLM_MODEL_ID,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": float(_LLM_TEMPERATURE),
+        }
+        if _LLM_MODEL_ID.startswith("openai/gpt-oss"):
+            # Reasoning tokens count against the completion budget and can
+            # otherwise leave this model with no visible answer content.
+            request["max_completion_tokens"] = max(max_new_tokens, 512)
+            request["reasoning_effort"] = "low"
+        else:
+            request["max_tokens"] = max_new_tokens
+
+        response = _get_llm_client().chat.completions.create(**request)
         content = response.choices[0].message.content
         if not content:
             raise RuntimeError("LLM returned an empty answer")
