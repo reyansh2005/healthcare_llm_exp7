@@ -33,6 +33,10 @@ SYSTEM_INSTRUCTION = (
 
 _DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
 _CHROMA_DIR = Path(os.getenv("CHROMA_DIR", "./chroma_healthcare"))
+if not _DATA_DIR.is_dir():
+    _DATA_DIR = Path.cwd() / "data"
+if not _CHROMA_DIR.parent.exists() or not os.access(_CHROMA_DIR.parent, os.W_OK):
+    _CHROMA_DIR = Path("/tmp/chroma_healthcare")
 _LLM_API_BASE = os.getenv("LLM_API_BASE", "")
 _LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 _LLM_MODEL_ID = os.getenv("LLM_MODEL_ID", "")
