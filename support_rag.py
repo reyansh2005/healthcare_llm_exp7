@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader, TextLoader
 from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
 
@@ -39,24 +38,52 @@ _LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 _LLM_MODEL_ID = os.getenv("LLM_MODEL_ID", "")
 _LLM_TEMPERATURE = os.getenv("LLM_TEMPERATURE", "0.0")
 
-_embedding_model: HuggingFaceEmbeddings | None = None
+_embedding_model: Any = None
 _vector_store: Chroma | None = None
 _retriever: Any = None
 _llm_client: OpenAI | None = None
 _singleton_lock = threading.RLock()
 
 
-def _get_embedding_model() -> HuggingFaceEmbeddings:
-    """Return the process-wide CPU embedding model."""
+def _get_embedding_model() -> Any:
+    """Return the process-wide embedding model selected for the environment."""
     global _embedding_model
     if _embedding_model is None:
         with _singleton_lock:
             if _embedding_model is None:
-                _embedding_model = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2",
-                    model_kwargs={"device": "cpu"},
-                    encode_kwargs={"normalize_embeddings": True},
-                )
+                backend = os.getenv("EMBEDDING_BACKEND", "local").lower()
+                if backend == "fastembed":
+                    from fastembed import TextEmbedding
+
+                    model_name = os.getenv(
+                        "EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"
+                    )
+                    cache_dir = os.getenv("FASTEMBED_CACHE_DIR", "./.fastembed")
+                    encoder = TextEmbedding(
+                        model_name=model_name,
+                        cache_dir=cache_dir,
+                    )
+
+                    class FastEmbedAdapter:
+                        """Adapt fastembed to LangChain's embedding interface."""
+
+                        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+                            return [
+                                vector.tolist() for vector in encoder.embed(texts)
+                            ]
+
+                        def embed_query(self, text: str) -> list[float]:
+                            return self.embed_documents([text])[0]
+
+                    _embedding_model = FastEmbedAdapter()
+                else:
+                    from langchain_huggingface import HuggingFaceEmbeddings
+
+                    _embedding_model = HuggingFaceEmbeddings(
+                        model_name="sentence-transformers/all-MiniLM-L6-v2",
+                        model_kwargs={"device": "cpu"},
+                        encode_kwargs={"normalize_embeddings": True},
+                    )
     return _embedding_model
 
 

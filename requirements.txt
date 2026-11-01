@@ -10,6 +10,7 @@ langchain-huggingface>=0.1.2
 langchain-chroma>=0.2.4
 chromadb>=0.5.15
 sentence-transformers>=3.0
+fastembed>=0.3.6
 pypdf
 docx2txt
 pytest

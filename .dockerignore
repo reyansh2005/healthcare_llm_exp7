@@ -1,0 +1,11 @@
+.env
+.venv/
+.git/
+.gitignore
+__pycache__/
+.pytest_cache/
+*.ipynb_checkpoints/
+chroma_healthcare/
+.fastembed/
+tests/
+README.md
